@@ -1,0 +1,263 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Konversi Gambar: Grayscale, Biner, dan Terindeks</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 48px 16px 48px 16px;
+      font-family: 'Inter', Arial, sans-serif;
+      background: linear-gradient(to bottom, #f9e6e4, #f4b9c1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+    h1 {
+      color: #666666;
+      font-weight: 600;
+      font-size: 1.5rem;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 40px;
+    }
+    input[type="file"] {
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 14px;
+      cursor: pointer;
+      background: white;
+      color: #333;
+    }
+    button {
+      background-color: #f9a9b7;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 20px;
+      font-weight: 600;
+      font-size: 14px;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #e07a8a;
+    }
+    #canvas-container {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      width: 100%;
+      max-width: 900px;
+      justify-content: center;
+      align-items: center;
+    }
+    @media (min-width: 768px) {
+      #canvas-container {
+        flex-direction: row;
+      }
+    }
+    .canvas-wrapper {
+      background: #fdebed;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 4px 8px rgb(0 0 0 / 0.1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 420px;
+      box-sizing: border-box;
+    }
+    .canvas-wrapper h2 {
+      color: #666666;
+      font-weight: 600;
+      font-size: 18px;
+      margin-bottom: 16px;
+      font-family: 'Inter', Arial, sans-serif;
+    }
+    canvas {
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgb(0 0 0 / 0.1);
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <h1>Konversi Gambar: Grayscale, Biner, dan Terindeks</h1>
+
+  <div class="controls">
+    <input type="file" id="upload" accept="image/*" aria-label="Pilih File" />
+    <button id="btnGrayscale" type="button">Grayscale</button>
+    <button id="btnBinary" type="button">Biner</button>
+    <button id="btnIndexed" type="button">Terindeks</button>
+  </div>
+
+  <div id="canvas-container">
+    <div class="canvas-wrapper">
+      <h2>Gambar Asli</h2>
+      <canvas id="canvas" width="400" height="300"></canvas>
+    </div>
+    <div class="canvas-wrapper">
+      <h2 id="result-text">Hasil Konversi</h2>
+      <canvas id="canvas-result" width="400" height="300"></canvas>
+    </div>
+  </div>
+
+  <script>
+    const upload = document.getElementById("upload");
+    const canvas = document.getElementById("canvas");
+    const canvasResult = document.getElementById("canvas-result");
+    const ctx = canvas.getContext("2d");
+    const ctxResult = canvasResult.getContext("2d");
+    const resultText = document.getElementById("result-text");
+    let img = new Image();
+
+    upload.addEventListener("change", function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+
+      reader.onload = function (event) {
+        img = new Image();
+        img.onload = function () {
+          let maxWidth = 400;
+          let maxHeight = 300;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          canvasResult.width = width;
+          canvasResult.height = height;
+
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctxResult.clearRect(0, 0, canvasResult.width, canvasResult.height);
+
+          ctx.drawImage(img, 0, 0, width, height);
+          resultText.textContent = "Hasil Konversi";
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    const palette = {
+      0: [0, 0, 0],        // Hitam
+      1: [255, 0, 0],      // Merah
+      2: [0, 255, 0],      // Hijau
+      3: [0, 0, 255],      // Biru
+    };
+
+    function convertToGrayscale(pixel) {
+      const [r, g, b] = pixel;
+      return Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+    }
+
+    function convertToBinary(grayValue, threshold = 128) {
+      return grayValue >= threshold ? 255 : 0;
+    }
+
+    function findClosestColorIndex(pixel) {
+      const [r1, g1, b1] = pixel;
+      let closestIndex = 0;
+      let minDist = Infinity;
+
+      for (const index in palette) {
+        const [r2, g2, b2] = palette[index];
+        const dist = Math.sqrt(
+          (r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2
+        );
+        if (dist < minDist) {
+          minDist = dist;
+          closestIndex = index;
+        }
+      }
+      return closestIndex;
+    }
+
+    function toGrayscale() {
+      if (!img.src) return;
+      ctxResult.drawImage(img, 0, 0, canvasResult.width, canvasResult.height);
+      const imgData = ctxResult.getImageData(0, 0, canvasResult.width, canvasResult.height);
+      const data = imgData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const gray = convertToGrayscale([r, g, b]);
+        data[i] = data[i + 1] = data[i + 2] = gray;
+      }
+
+      ctxResult.putImageData(imgData, 0, 0);
+      resultText.textContent = "Hasil Grayscale";
+    }
+
+    function toBinary() {
+      if (!img.src) return;
+      ctxResult.drawImage(img, 0, 0, canvasResult.width, canvasResult.height);
+      const imgData = ctxResult.getImageData(0, 0, canvasResult.width, canvasResult.height);
+      const data = imgData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const gray = convertToGrayscale([r, g, b]);
+        const binary = convertToBinary(gray);
+        data[i] = data[i + 1] = data[i + 2] = binary;
+      }
+
+      ctxResult.putImageData(imgData, 0, 0);
+      resultText.textContent = "Hasil Biner";
+    }
+
+    function toIndexed() {
+      if (!img.src) return;
+      ctxResult.drawImage(img, 0, 0, canvasResult.width, canvasResult.height);
+      const imgData = ctxResult.getImageData(0, 0, canvasResult.width, canvasResult.height);
+      const data = imgData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const index = findClosestColorIndex([r, g, b]);
+        const [r2, g2, b2] = palette[index];
+        data[i] = r2;
+        data[i + 1] = g2;
+        data[i + 2] = b2;
+      }
+
+      ctxResult.putImageData(imgData, 0, 0);
+      resultText.textContent = "Hasil Terindeks";
+    }
+
+    document.getElementById("btnGrayscale").addEventListener("click", toGrayscale);
+    document.getElementById("btnBinary").addEventListener("click", toBinary);
+    document.getElementById("btnIndexed").addEventListener("click", toIndexed);
+  </script>
+</body>
+</html>
